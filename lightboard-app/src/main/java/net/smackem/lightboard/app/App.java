@@ -7,32 +7,33 @@ import javafx.scene.Scene;
 import javafx.stage.Stage;
 
 import java.io.IOException;
+import java.util.Objects;
 
 /**
  * JavaFX App
  */
 public class App extends Application {
-
-    private static Scene scene;
+    private static String fxml;
+    private Scene scene;
 
     @Override
     public void start(Stage stage) throws IOException {
-        scene = new Scene(loadFXML("main"), 640, 480);
-        stage.setScene(scene);
+        this.scene = new Scene(loadFxml(fxml), 640, 480);
+        stage.setScene(this.scene);
         stage.show();
     }
 
-    static void setRoot(String fxml) throws IOException {
-        scene.setRoot(loadFXML(fxml));
-    }
-
-    private static Parent loadFXML(String fxml) throws IOException {
+    private static Parent loadFxml(String fxml) throws IOException {
         final FXMLLoader fxmlLoader = new FXMLLoader(App.class.getResource(fxml + ".fxml"));
         return fxmlLoader.load();
     }
 
     public static void main(String[] args) {
+        if (args.length > 0 && Objects.equals(args[0], "client")) {
+            fxml = "/net/smackem/lightboard/client/client";
+        } else {
+            fxml = "main";
+        }
         launch();
     }
-
 }

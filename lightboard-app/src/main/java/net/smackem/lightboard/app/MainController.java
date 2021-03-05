@@ -1,36 +1,33 @@
 package net.smackem.lightboard.app;
 
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
-
-import com.google.common.base.Joiner;
-import com.illposed.osc.*;
-import com.illposed.osc.transport.udp.OSCPortIn;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
-import javafx.geometry.Point2D;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.paint.Color;
 import javafx.stage.WindowEvent;
-import net.smackem.lightboard.Figure;
+import net.smackem.lightboard.io.MessageExchangeHost;
+import net.smackem.lightboard.messaging.*;
+import net.smackem.lightboard.model.Drawing;
+import net.smackem.lightboard.model.Figure;
 import org.locationtech.jts.geom.Coordinate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class MainController implements OSCPacketListener {
+import java.io.IOException;
+import java.util.concurrent.Flow;
+
+public class MainController {
     private static final Logger log = LoggerFactory.getLogger(MainController.class);
-    private final OSCPortIn inboundPort;
-    private final List<Figure> figures = new ArrayList<>();
+    private final Drawing drawing = new Drawing();
+    private final MessageExchangeHost mex;
 
     @FXML
     private Canvas canvas;
 
     public MainController() throws IOException {
-        this.inboundPort = new OSCPortIn(7770);
-        this.inboundPort.addPacketListener(this);
-        this.inboundPort.startListening();
+        this.mex = new MessageExchangeHost(() -> this.drawing);
+        this.mex.inboundMessagePublisher().subscribe(new InboundMessageSubscriber());
     }
 
     @FXML
@@ -45,7 +42,7 @@ public class MainController implements OSCPacketListener {
         gc.fillRect(0, 0, this.canvas.getWidth(), this.canvas.getHeight());
         gc.setStroke(Color.WHITE);
         gc.setLineWidth(3);
-        for (final Figure figure : this.figures) {
+        for (final Figure figure : this.drawing.figures()) {
             Coordinate prevPt = null;
             for (final Coordinate point : figure.points()) {
                 if (prevPt != null) {
@@ -58,85 +55,63 @@ public class MainController implements OSCPacketListener {
 
     private void onWindowClosed(WindowEvent windowEvent) {
         try {
-            this.inboundPort.close();
+            this.mex.close();
         } catch (Exception e) {
-            log.error("error closing osc port", e);
+            log.error("error closing mex", e);
             e.printStackTrace();
         }
     }
 
-    @Override
-    public void handlePacket(OSCPacketEvent oscPacketEvent) {
-        internalHandlePacket(oscPacketEvent.getPacket());
-    }
-
-    private void internalHandlePacket(OSCPacket packet) {
-        if (packet instanceof OSCBundle bundle) {
-            log.info("bundle received @ {}: {}", bundle.getTimestamp(), bundle.getPackets());
-            for (final OSCPacket innerPacket : bundle.getPackets()) {
-                internalHandlePacket(innerPacket);
-            }
+    private void handleMessage(Message message) {
+        if (message instanceof InitSizeMessage initSize) {
+            this.drawing.clear();
+            this.canvas.setWidth(initSize.width());
+            this.canvas.setHeight(initSize.height());
+            render();
             return;
         }
-        if (packet instanceof OSCMessage message) {
-            log.info("message @ {}: {}", message.getAddress(), Joiner.on(", ").join(message.getArguments()));
-            switch (message.getAddress()) {
-                case "/init/size" -> handleInitSize(message);
-                case "/figure/begin" -> handleFigureBegin(message);
-                case "/figure/point" -> handleFigurePoint(message);
-                case "/figure/end" -> handleFigureEnd(message);
-            }
+        if (message instanceof FigureBeginMessage figureBegin) {
+            this.drawing.beginFigure(figureBegin.point());
             return;
         }
-        throw new IllegalArgumentException("invalid packet type: " + packet.getClass());
-    }
-
-    @Override
-    public void handleBadData(OSCBadDataEvent oscBadDataEvent) {
-        log.info("bad osc data: {}", oscBadDataEvent);
-    }
-
-    private void handleInitSize(OSCMessage message) {
-        final List<Object> args = message.getArguments();
-        this.figures.clear();
-        this.canvas.setWidth((int) args.get(0));
-        this.canvas.setHeight((int) args.get(1));
-        render();
-    }
-
-    private void handleFigureBegin(OSCMessage message) {
-        final Figure figure = currentFigure();
-        if (figure != null && figure.points().size() <= 1) {
-            this.figures.remove(this.figures.size() - 1);
-        }
-        final Figure newFigure = new Figure();
-        final List<Object> args = message.getArguments();
-        newFigure.points().add(new Coordinate((float) args.get(0), (float) args.get(1)));
-        this.figures.add(newFigure);
-    }
-
-    private void handleFigurePoint(OSCMessage message) {
-        final Figure figure = currentFigure();
-        if (figure == null) {
+        if (message instanceof FigurePointMessage figurePoint) {
+            this.drawing.addPoint(figurePoint.point());
+            render();
             return;
         }
-        final List<Object> args = message.getArguments();
-        figure.points().add(new Coordinate((float) args.get(0), (float) args.get(1)));
-        render();
-    }
-
-    private void handleFigureEnd(OSCMessage message) {
-        final Figure figure = currentFigure();
-        if (figure == null) {
+        if (message instanceof FigureEndMessage figureEnd) {
+            this.drawing.endFigure(figureEnd.point());
+            render();
             return;
         }
-        figure.simplify();
-        render();
+        throw new IllegalArgumentException("unsupported message type " + message.getClass());
     }
 
-    private Figure currentFigure() {
-        return this.figures.size() > 0
-                ? this.figures.get(this.figures.size() - 1)
-                : null;
+    private class InboundMessageSubscriber implements Flow.Subscriber<Message> {
+        private Flow.Subscription subscription;
+
+        @Override
+        public void onSubscribe(Flow.Subscription subscription) {
+            this.subscription = subscription;
+            subscription.request(1);
+        }
+
+        @Override
+        public void onNext(Message item) {
+            Platform.runLater(() -> {
+                handleMessage(item);
+                subscription.request(1);
+            });
+        }
+
+        @Override
+        public void onError(Throwable throwable) {
+            log.error("error consuming message", throwable);
+        }
+
+        @Override
+        public void onComplete() {
+            log.info("message stream complete");
+        }
     }
 }

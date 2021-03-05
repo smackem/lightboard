@@ -14,12 +14,11 @@ import java.util.Objects;
  */
 public class App extends Application {
     private static String fxml;
-    private Scene scene;
 
     @Override
     public void start(Stage stage) throws IOException {
-        this.scene = new Scene(loadFxml(fxml), 640, 480);
-        stage.setScene(this.scene);
+        final Scene scene = new Scene(loadFxml(fxml), 640, 480);
+        stage.setScene(scene);
         stage.show();
     }
 
@@ -29,7 +28,7 @@ public class App extends Application {
     }
 
     public static void main(String[] args) {
-        if (args.length > 0 && Objects.equals(args[0], "client")) {
+        if (args.length > 0 && "client".equals(args[0])) {
             fxml = "/net/smackem/lightboard/client/client";
         } else {
             fxml = "main";

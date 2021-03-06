@@ -1,0 +1,9 @@
+.root {
+    -fx-base: #111;
+    -fx-snap-to-pixel: true;
+}
+
+#canvasContainer {
+    -fx-background-image: url("checker_dark.png");
+    -fx-background-repeat: repeat;
+}

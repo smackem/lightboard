@@ -17,12 +17,27 @@ public class Figure {
     private static final Logger log = LoggerFactory.getLogger(Figure.class);
     @JsonIgnore private final transient Object monitor = new Object();
     @JsonIgnore private final List<Coordinate> points = new ArrayList<>();
+    @JsonProperty private final Rgba color;
+    @JsonProperty private final double strokeWidth;
+
+    public Figure(Rgba color, double strokeWidth) {
+        this.color = color;
+        this.strokeWidth = strokeWidth;
+    }
 
     @JsonProperty
     public Collection<Coordinate> points() {
         synchronized (this.monitor) {
             return List.copyOf(this.points);
         }
+    }
+
+    public Rgba color() {
+        return this.color;
+    }
+
+    public double strokeWidth() {
+        return this.strokeWidth;
     }
 
     @JsonIgnore

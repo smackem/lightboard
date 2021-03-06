@@ -10,6 +10,7 @@ import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
 import net.smackem.lightboard.messaging.*;
 import net.smackem.lightboard.model.Drawing;
+import net.smackem.lightboard.model.Rgba;
 import org.locationtech.jts.geom.Coordinate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -96,7 +97,10 @@ public class MessageExchangeHost implements AutoCloseable {
         log.info("message @ {}: {}", oscMsg.getAddress(), Joiner.on(", ").join(oscMsg.getArguments()));
         final Message message = switch (oscMsg.getAddress()) {
             case "/init/size" -> new InitSizeMessage((int) args.get(0), (int) args.get(1));
-            case "/figure/begin" -> new FigureBeginMessage(new Coordinate((float) args.get(0), (float) args.get(1)));
+            case "/figure/begin" -> new FigureBeginMessage(
+                    new Coordinate((float) args.get(0), (float) args.get(1)),
+                    new Rgba((int) args.get(2), (int) args.get(3), (int) args.get(4), (int) args.get(5)),
+                    (float) args.get(6));
             case "/figure/point" -> new FigurePointMessage(new Coordinate((float) args.get(0), (float) args.get(1)));
             case "/figure/end" -> new FigureEndMessage(new Coordinate((float) args.get(0), (float) args.get(1)));
             default -> {

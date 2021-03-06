@@ -25,12 +25,15 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 public class ClientController {
     private static final Logger log = LoggerFactory.getLogger(ClientController.class);
     private final OSCPortOut outboundPort;
+    private final Collection<PointBean> currentFigure = new ArrayList<>();
     private DrawingBean drawing;
 
     @FXML
@@ -70,19 +73,25 @@ public class ClientController {
         final GraphicsContext gc = this.canvas.getGraphicsContext2D();
         gc.setFill(Color.BLACK);
         gc.fillRect(0, 0, this.canvas.getWidth(), this.canvas.getHeight());
-        if (this.drawing == null) {
-            return;
-        }
-        gc.setStroke(Color.RED);
-        gc.setLineWidth(3);
-        for (final FigureBean figure : this.drawing.figures()) {
-            PointBean prevPt = null;
-            for (final PointBean point : figure.points()) {
-                if (prevPt != null) {
-                    gc.strokeLine(prevPt.x(), prevPt.y(), point.x(), point.y());
-                }
-                prevPt = point;
+        if (this.drawing != null) {
+            gc.setStroke(Color.GRAY);
+            gc.setLineWidth(2);
+            for (final FigureBean figure : this.drawing.figures()) {
+                renderFigure(gc, figure.points());
             }
+        }
+        gc.setStroke(Color.WHITE);
+        gc.setLineWidth(1);
+        renderFigure(gc, this.currentFigure);
+    }
+
+    private void renderFigure(GraphicsContext gc, Collection<PointBean> points) {
+        PointBean prevPt = null;
+        for (final PointBean point : points) {
+            if (prevPt != null) {
+                gc.strokeLine(prevPt.x(), prevPt.y(), point.x(), point.y());
+            }
+            prevPt = point;
         }
     }
 
@@ -96,14 +105,19 @@ public class ClientController {
     }
 
     private void onMousePressed(MouseEvent event) {
+        this.currentFigure.add(new PointBean(event.getX(), event.getY()));
+        render();
         try {
-            this.outboundPort.send(new OSCMessage("/figure/begin", List.of((float) event.getX(), (float) event.getY())));
+            this.outboundPort.send(new OSCMessage("/figure/begin",
+                    List.of((float) event.getX(), (float) event.getY(), 0xff, 0x80, 0x00, 0xff, 2.0f)));
         } catch (OSCSerializeException | IOException e) {
             e.printStackTrace();
         }
     }
 
     private void onMouseDragged(MouseEvent event) {
+        this.currentFigure.add(new PointBean(event.getX(), event.getY()));
+        render();
         try {
             this.outboundPort.send(new OSCMessage("/figure/point", List.of((float) event.getX(), (float) event.getY())));
         } catch (OSCSerializeException | IOException e) {
@@ -112,6 +126,7 @@ public class ClientController {
     }
 
     private void onMouseReleased(MouseEvent event) {
+        this.currentFigure.clear();
         try {
             this.outboundPort.send(new OSCMessage("/figure/end", List.of((float) event.getX(), (float) event.getY())));
             downloadDrawing();
@@ -123,7 +138,7 @@ public class ClientController {
     private void downloadDrawing() {
         final HttpClient http = HttpClient.newHttpClient();
         final HttpRequest request = HttpRequest.newBuilder(URI.create("http://localhost:7772/drawing")).build();
-        final var cf = http.sendAsync(request, HttpResponse.BodyHandlers.ofString());
+        final CompletableFuture<HttpResponse<String>> cf = http.sendAsync(request, HttpResponse.BodyHandlers.ofString());
         cf.exceptionally(e -> {
             log.error("error downloading drawing via http", e);
             return null;

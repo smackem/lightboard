@@ -13,6 +13,11 @@ public final class PointBean {
         this.y = 0;
     }
 
+    public PointBean(double x, double y) {
+        this.x = x;
+        this.y = y;
+    }
+
     public double x() {
         return this.x;
     }

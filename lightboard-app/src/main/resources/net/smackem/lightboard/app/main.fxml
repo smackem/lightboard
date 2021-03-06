@@ -8,9 +8,12 @@
 <?import javafx.scene.layout.BorderPane?>
 <?import javafx.scene.control.ToolBar?>
 <?import javafx.scene.canvas.Canvas?>
+<?import javafx.scene.layout.StackPane?>
 <BorderPane xmlns="http://javafx.com/javafx/8.0.171"
             xmlns:fx="http://javafx.com/fxml/1"
-            fx:controller="net.smackem.lightboard.app.MainController">
+            fx:controller="net.smackem.lightboard.app.MainController"
+            stylesheets="@main.css"
+            styleClass="root">
    <top>
       <ToolBar>
          <Button text="Some Button" />
@@ -18,6 +21,8 @@
    </top>
 
    <center>
-      <Canvas fx:id="canvas" width="640" height="480" />
+      <StackPane fx:id="canvasContainer">
+         <Canvas fx:id="canvas" width="640" height="480" />
+      </StackPane>
    </center>
 </BorderPane>

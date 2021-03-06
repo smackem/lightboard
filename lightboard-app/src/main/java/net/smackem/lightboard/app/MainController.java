@@ -4,12 +4,15 @@ import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
+import javafx.scene.layout.Pane;
+import javafx.scene.layout.StackPane;
 import javafx.scene.paint.Color;
 import javafx.stage.WindowEvent;
 import net.smackem.lightboard.io.MessageExchangeHost;
 import net.smackem.lightboard.messaging.*;
 import net.smackem.lightboard.model.Drawing;
 import net.smackem.lightboard.model.Figure;
+import net.smackem.lightboard.model.Rgba;
 import org.locationtech.jts.geom.Coordinate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -25,6 +28,8 @@ public class MainController {
 
     @FXML
     private Canvas canvas;
+    @FXML
+    private Pane canvasContainer;
 
     public MainController() throws IOException {
         this.mex = new MessageExchangeHost(() -> this.drawing);
@@ -39,12 +44,13 @@ public class MainController {
 
     private void render() {
         final GraphicsContext gc = this.canvas.getGraphicsContext2D();
-        gc.setFill(Color.BLACK);
+        gc.setFill(Color.WHITE);
         gc.fillRect(0, 0, this.canvas.getWidth(), this.canvas.getHeight());
-        gc.setStroke(Color.WHITE);
-        gc.setLineWidth(3);
         for (final Figure figure : this.drawing.figures()) {
             Coordinate prevPt = null;
+            final Rgba rgba = figure.color();
+            gc.setStroke(Color.rgb(rgba.r(), rgba.g(), rgba.b(), rgba.a() / 255.0));
+            gc.setLineWidth(figure.strokeWidth());
             for (final Coordinate point : figure.points()) {
                 if (prevPt != null) {
                     gc.strokeLine(prevPt.getX(), prevPt.getY(), point.getX(), point.getY());
@@ -72,7 +78,7 @@ public class MainController {
             return;
         }
         if (message instanceof FigureBeginMessage figureBegin) {
-            this.drawing.beginFigure(figureBegin.point());
+            this.drawing.beginFigure(figureBegin.point(), figureBegin.color(), figureBegin.strokeWidth());
             return;
         }
         if (message instanceof FigurePointMessage figurePoint) {

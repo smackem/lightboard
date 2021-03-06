@@ -25,13 +25,13 @@ public class Drawing {
         }
     }
 
-    public void beginFigure(Coordinate point) {
+    public void beginFigure(Coordinate point, Rgba color, double strokeWidth) {
         synchronized (this.monitor) {
             final Figure figure = currentFigure();
             if (figure != null && figure.isEmpty()) {
                 this.figures.remove(this.figures.size() - 1);
             }
-            final Figure newFigure = new Figure();
+            final Figure newFigure = new Figure(color, strokeWidth);
             newFigure.addPoint(point);
             this.figures.add(newFigure);
         }

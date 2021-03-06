@@ -11,6 +11,7 @@
     <modules>
         <module>lightboard-app</module>
         <module>lightboard-core</module>
+        <module>lightboard-testclient</module>
     </modules>
 
     <name>lightboard</name>

@@ -1,28 +1,37 @@
 package net.smackem.lightboard.client;
 
-import com.illposed.osc.OSCBundle;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.illposed.osc.OSCMessage;
 import com.illposed.osc.OSCSerializeException;
 import com.illposed.osc.transport.udp.OSCPortOut;
 import javafx.application.Platform;
 import javafx.beans.Observable;
-import javafx.beans.binding.Bindings;
 import javafx.fxml.FXML;
-import javafx.scene.Parent;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.input.MouseEvent;
-import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.Pane;
 import javafx.scene.paint.Color;
 import javafx.stage.WindowEvent;
+import net.smackem.lightboard.client.beans.DrawingBean;
+import net.smackem.lightboard.client.beans.FigureBean;
+import net.smackem.lightboard.client.beans.PointBean;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 
 public class ClientController {
+    private static final Logger log = LoggerFactory.getLogger(ClientController.class);
     private final OSCPortOut outboundPort;
+    private DrawingBean drawing;
 
     @FXML
     private Pane canvasContainer;
@@ -30,10 +39,10 @@ public class ClientController {
     private Canvas canvas;
 
     public ClientController() throws IOException {
-        this.outboundPort = new OSCPortOut(new InetSocketAddress("localhost", 7770));
+        this.outboundPort = new OSCPortOut(new InetSocketAddress("localhost", 7771));
         this.outboundPort.connect();
     }
-    
+
     @FXML
     private void initialize() {
         this.canvas.addEventHandler(MouseEvent.MOUSE_PRESSED, this::onMousePressed);
@@ -61,6 +70,20 @@ public class ClientController {
         final GraphicsContext gc = this.canvas.getGraphicsContext2D();
         gc.setFill(Color.BLACK);
         gc.fillRect(0, 0, this.canvas.getWidth(), this.canvas.getHeight());
+        if (this.drawing == null) {
+            return;
+        }
+        gc.setStroke(Color.RED);
+        gc.setLineWidth(3);
+        for (final FigureBean figure : this.drawing.figures()) {
+            PointBean prevPt = null;
+            for (final PointBean point : figure.points()) {
+                if (prevPt != null) {
+                    gc.strokeLine(prevPt.x(), prevPt.y(), point.x(), point.y());
+                }
+                prevPt = point;
+            }
+        }
     }
 
     private void onWindowCloseRequest(WindowEvent windowEvent) {
@@ -91,8 +114,29 @@ public class ClientController {
     private void onMouseReleased(MouseEvent event) {
         try {
             this.outboundPort.send(new OSCMessage("/figure/end", List.of((float) event.getX(), (float) event.getY())));
+            downloadDrawing();
         } catch (OSCSerializeException | IOException e) {
             e.printStackTrace();
         }
+    }
+
+    private void downloadDrawing() {
+        final HttpClient http = HttpClient.newHttpClient();
+        final HttpRequest request = HttpRequest.newBuilder(URI.create("http://localhost:7772/drawing")).build();
+        final var cf = http.sendAsync(request, HttpResponse.BodyHandlers.ofString());
+        cf.exceptionally(e -> {
+            log.error("error downloading drawing via http", e);
+            return null;
+        });
+        cf.thenAcceptAsync(response -> {
+            log.info("http response received: {}", response);
+            final ObjectMapper mapper = new ObjectMapper();
+            try {
+                this.drawing = mapper.readerFor(DrawingBean.class).readValue(response.body());
+            } catch (IOException e) {
+                log.error("error downloading drawing via http", e);
+            }
+            render();
+        }, Platform::runLater);
     }
 }

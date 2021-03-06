@@ -1,5 +1,7 @@
 package net.smackem.lightboard.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryFactory;
@@ -13,15 +15,17 @@ import java.util.List;
 
 public class Figure {
     private static final Logger log = LoggerFactory.getLogger(Figure.class);
-    private final Object monitor = new Object();
-    private final List<Coordinate> points = new ArrayList<>();
+    @JsonIgnore private final transient Object monitor = new Object();
+    @JsonIgnore private final List<Coordinate> points = new ArrayList<>();
 
+    @JsonProperty
     public Collection<Coordinate> points() {
         synchronized (this.monitor) {
             return List.copyOf(this.points);
         }
     }
 
+    @JsonIgnore
     public boolean isEmpty() {
         synchronized (this.monitor) {
             return this.points.isEmpty();

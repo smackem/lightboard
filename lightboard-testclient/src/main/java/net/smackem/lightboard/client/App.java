@@ -1,4 +1,4 @@
-package net.smackem.lightboard.app;
+package net.smackem.lightboard.client;
 
 import javafx.application.Application;
 import javafx.fxml.FXMLLoader;
@@ -7,7 +7,6 @@ import javafx.scene.Scene;
 import javafx.stage.Stage;
 
 import java.io.IOException;
-import java.util.Objects;
 
 /**
  * JavaFX App
@@ -16,7 +15,7 @@ public class App extends Application {
 
     @Override
     public void start(Stage stage) throws IOException {
-        final Scene scene = new Scene(loadFxml("main"), 640, 480);
+        final Scene scene = new Scene(loadFxml("client"), 640, 480);
         stage.setScene(scene);
         stage.show();
     }

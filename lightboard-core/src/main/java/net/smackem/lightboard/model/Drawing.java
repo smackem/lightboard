@@ -1,5 +1,7 @@
 package net.smackem.lightboard.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import org.locationtech.jts.geom.Coordinate;
 
 import java.util.ArrayList;
@@ -7,9 +9,10 @@ import java.util.Collection;
 import java.util.List;
 
 public class Drawing {
-    private final Object monitor = new Object();
-    private final List<Figure> figures = new ArrayList<>();
+    @JsonIgnore private final transient Object monitor = new Object();
+    @JsonIgnore private final List<Figure> figures = new ArrayList<>();
 
+    @JsonProperty
     public Collection<Figure> figures() {
         synchronized (this.monitor) {
             return List.copyOf(this.figures);

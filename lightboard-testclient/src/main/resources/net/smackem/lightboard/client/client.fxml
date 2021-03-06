@@ -7,10 +7,18 @@
 <?import javafx.scene.layout.*?>
 
 <?import javafx.scene.canvas.Canvas?>
-<AnchorPane fx:id="canvasContainer"
-            xmlns="http://javafx.com/javafx"
+<BorderPane xmlns="http://javafx.com/javafx"
             xmlns:fx="http://javafx.com/fxml"
             fx:controller="net.smackem.lightboard.client.ClientController"
             prefHeight="400.0" prefWidth="600.0">
-    <Canvas fx:id="canvas" />
-</AnchorPane>
+    <top>
+        <ToolBar>
+            <Button text="Test Client" />
+        </ToolBar>
+    </top>
+    <center>
+        <StackPane fx:id="canvasContainer">
+            <Canvas fx:id="canvas" />
+        </StackPane>
+    </center>
+</BorderPane>

@@ -1,7 +1,8 @@
 package net.smackem.lightboard.io;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.Module;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.google.common.base.Joiner;
 import com.illposed.osc.*;
 import com.illposed.osc.transport.udp.OSCPortIn;
@@ -14,22 +15,23 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.util.List;
 import java.util.Objects;
-import java.util.concurrent.Flow;
-import java.util.concurrent.SubmissionPublisher;
+import java.util.concurrent.*;
 import java.util.function.Supplier;
 
 public class MessageExchangeHost implements AutoCloseable {
     private static final Logger log = LoggerFactory.getLogger(MessageExchangeHost.class);
-    public static final int DEFAULT_OSC_PORT = 7770;
-    public static final int DEFAULT_HTTP_PORT = 7771;
+    public static final int DEFAULT_OSC_PORT = 7771;
+    public static final int DEFAULT_HTTP_PORT = 7772;
 
     private final OSCPortIn inbound;
     private final SubmissionPublisher<Message> inboundMessagePublisher = new SubmissionPublisher<>();
     private final Supplier<Drawing> drawingSupplier;
     private final HttpServer httpServer;
+    private final ExecutorService httpExecutor;
 
     public MessageExchangeHost(Supplier<Drawing> drawingSupplier) throws IOException {
         this.drawingSupplier = Objects.requireNonNull(drawingSupplier);
@@ -38,6 +40,8 @@ public class MessageExchangeHost implements AutoCloseable {
         this.inbound.startListening();
         this.httpServer = HttpServer.create(new InetSocketAddress(DEFAULT_HTTP_PORT), 16);
         this.httpServer.createContext("/drawing", this::handleDrawingRequest);
+        this.httpExecutor = Executors.newSingleThreadExecutor();
+        this.httpServer.setExecutor(this.httpExecutor);
         this.httpServer.start();
     }
 
@@ -49,16 +53,26 @@ public class MessageExchangeHost implements AutoCloseable {
     public void close() throws Exception {
         this.inboundMessagePublisher.close();
         this.inbound.close();
-        this.httpServer.stop(10);
+        this.httpExecutor.shutdownNow();
+        //noinspection ResultOfMethodCallIgnored
+        this.httpExecutor.awaitTermination(10, TimeUnit.SECONDS);
+        this.httpServer.stop(0);
     }
 
     private void handleDrawingRequest(HttpExchange exchange) {
         final Drawing drawing = this.drawingSupplier.get();
         exchange.getResponseHeaders().add("Content-Type", "application/json");
         try {
-            new ObjectMapper().writeValueAsBytes(drawing);
-        } catch (JsonProcessingException e) {
-            log.error("error serializing drawing to json", e);
+            final Module module = new SimpleModule().addSerializer(new CoordinateSerializer());
+            final ObjectMapper mapper = new ObjectMapper().registerModule(module);
+            final byte[] bytes = mapper.writeValueAsBytes(drawing);
+            final OutputStream os = exchange.getResponseBody();
+            exchange.sendResponseHeaders(200, bytes.length);
+            os.write(bytes);
+            os.flush();
+            os.close();
+        } catch (IOException e) {
+            log.error("error writing json response", e);
         }
     }
 

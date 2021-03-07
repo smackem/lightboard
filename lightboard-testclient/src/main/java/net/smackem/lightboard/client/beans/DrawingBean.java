@@ -4,7 +4,6 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
 
 public final class DrawingBean {
@@ -14,7 +13,7 @@ public final class DrawingBean {
     private DrawingBean() {
     }
 
-    public Collection<FigureBean> figures() {
+    public List<FigureBean> figures() {
         return this.figures;
     }
 }

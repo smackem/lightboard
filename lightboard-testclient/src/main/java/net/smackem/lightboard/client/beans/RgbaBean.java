@@ -17,6 +17,13 @@ public class RgbaBean {
         this.a = 0;
     }
 
+    public RgbaBean(int r, int g, int b, int a) {
+        this.r = r;
+        this.g = g;
+        this.b = b;
+        this.a = a;
+    }
+
     public int r() {
         return this.r;
     }

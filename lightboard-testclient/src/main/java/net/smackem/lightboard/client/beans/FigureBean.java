@@ -18,6 +18,11 @@ public final class FigureBean {
         this.color = null;
     }
 
+    public FigureBean(RgbaBean color, double strokeWidth) {
+        this.strokeWidth = strokeWidth;
+        this.color = color;
+    }
+
     public Collection<PointBean> points() {
         return this.points;
     }

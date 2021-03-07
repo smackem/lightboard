@@ -13,7 +13,11 @@
             prefHeight="400.0" prefWidth="600.0">
     <top>
         <ToolBar>
-            <Button text="Test Client" />
+            <Button text="New" onAction="#newDrawing" />
+            <Button text="Prev" onAction="#prevDrawing" />
+            <Button text="Next" onAction="#nextDrawing" />
+            <Separator />
+            <ToggleButton fx:id="toggleEraseButton" text="Erase" onAction="#toggleErase" />
         </ToolBar>
     </top>
     <center>

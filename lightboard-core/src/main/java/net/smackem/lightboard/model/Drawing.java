@@ -7,6 +7,7 @@ import org.locationtech.jts.geom.Coordinate;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.Objects;
 
 public class Drawing {
     @JsonIgnore private final transient Object monitor = new Object();
@@ -16,6 +17,13 @@ public class Drawing {
     public Collection<Figure> figures() {
         synchronized (this.monitor) {
             return List.copyOf(this.figures);
+        }
+    }
+
+    @JsonIgnore
+    public boolean isBlank() {
+        synchronized (this.monitor) {
+            return this.figures.isEmpty();
         }
     }
 
@@ -63,6 +71,13 @@ public class Drawing {
             return this.figures.size() > 0
                     ? this.figures.get(this.figures.size() - 1)
                     : null;
+        }
+    }
+
+    public Figure removeFigure(int figureIndex) {
+        synchronized (this.monitor) {
+            Objects.checkIndex(figureIndex, this.figures.size());
+            return this.figures.remove(figureIndex);
         }
     }
 }

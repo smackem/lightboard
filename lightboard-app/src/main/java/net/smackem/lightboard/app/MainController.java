@@ -7,9 +7,12 @@ import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.StackPane;
 import javafx.scene.paint.Color;
+import javafx.scene.shape.StrokeLineCap;
+import javafx.scene.shape.StrokeLineJoin;
 import javafx.stage.WindowEvent;
 import net.smackem.lightboard.io.MessageExchangeHost;
 import net.smackem.lightboard.messaging.*;
+import net.smackem.lightboard.model.Document;
 import net.smackem.lightboard.model.Drawing;
 import net.smackem.lightboard.model.Figure;
 import net.smackem.lightboard.model.Rgba;
@@ -17,13 +20,14 @@ import org.locationtech.jts.geom.Coordinate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.print.Doc;
 import java.io.IOException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Flow;
 
 public class MainController {
     private static final Logger log = LoggerFactory.getLogger(MainController.class);
-    private final Drawing drawing = new Drawing();
+    private final Document document = new Document();
     private final MessageExchangeHost mex;
 
     @FXML
@@ -32,7 +36,7 @@ public class MainController {
     private Pane canvasContainer;
 
     public MainController() throws IOException {
-        this.mex = new MessageExchangeHost(() -> this.drawing);
+        this.mex = new MessageExchangeHost(() -> this.document);
         this.mex.inboundMessagePublisher().subscribe(new InboundMessageSubscriber());
     }
 
@@ -44,9 +48,11 @@ public class MainController {
 
     private void render() {
         final GraphicsContext gc = this.canvas.getGraphicsContext2D();
+        gc.setLineCap(StrokeLineCap.ROUND);
+        gc.setLineJoin(StrokeLineJoin.ROUND);
         gc.setFill(Color.WHITE);
         gc.fillRect(0, 0, this.canvas.getWidth(), this.canvas.getHeight());
-        for (final Figure figure : this.drawing.figures()) {
+        for (final Figure figure : this.document.drawing().figures()) {
             Coordinate prevPt = null;
             final Rgba rgba = figure.color();
             gc.setStroke(Color.rgb(rgba.r(), rgba.g(), rgba.b(), rgba.a() / 255.0));
@@ -71,23 +77,34 @@ public class MainController {
 
     private void handleMessage(Message message) {
         if (message instanceof InitSizeMessage initSize) {
-            this.drawing.clear();
+            if (this.document.drawing().isBlank() == false) {
+                this.document.insertNewDrawing();
+            }
             this.canvas.setWidth(initSize.width());
             this.canvas.setHeight(initSize.height());
             render();
             return;
         }
         if (message instanceof FigureBeginMessage figureBegin) {
-            this.drawing.beginFigure(figureBegin.point(), figureBegin.color(), figureBegin.strokeWidth());
+            this.document.drawing().beginFigure(figureBegin.point(), figureBegin.color(), figureBegin.strokeWidth());
             return;
         }
         if (message instanceof FigurePointMessage figurePoint) {
-            this.drawing.addPoint(figurePoint.point());
+            this.document.drawing().addPoint(figurePoint.point());
             render();
             return;
         }
         if (message instanceof FigureEndMessage figureEnd) {
-            this.drawing.endFigure(figureEnd.point());
+            this.document.drawing().endFigure(figureEnd.point());
+            render();
+            return;
+        }
+        if (message instanceof FigureRemoveMessage figureRemove) {
+            this.document.drawing().removeFigure(figureRemove.figureIndex());
+            render();
+            return;
+        }
+        if (message instanceof RedrawMessage) {
             render();
             return;
         }

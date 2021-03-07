@@ -9,6 +9,7 @@ import com.illposed.osc.transport.udp.OSCPortIn;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
 import net.smackem.lightboard.messaging.*;
+import net.smackem.lightboard.model.Document;
 import net.smackem.lightboard.model.Drawing;
 import net.smackem.lightboard.model.Rgba;
 import org.locationtech.jts.geom.Coordinate;
@@ -30,19 +31,22 @@ public class MessageExchangeHost implements AutoCloseable {
 
     private final OSCPortIn inbound;
     private final SubmissionPublisher<Message> inboundMessagePublisher = new SubmissionPublisher<>();
-    private final Supplier<Drawing> drawingSupplier;
+    private final Supplier<Document> documentSupplier;
     private final HttpServer httpServer;
     private final ExecutorService httpExecutor;
 
-    public MessageExchangeHost(Supplier<Drawing> drawingSupplier) throws IOException {
-        this.drawingSupplier = Objects.requireNonNull(drawingSupplier);
+    public MessageExchangeHost(Supplier<Document> documentSupplier) throws IOException {
+        this.documentSupplier = Objects.requireNonNull(documentSupplier);
         this.inbound = new OSCPortIn(DEFAULT_OSC_PORT);
         this.inbound.addPacketListener(new PacketListener());
         this.inbound.startListening();
-        this.httpServer = HttpServer.create(new InetSocketAddress(DEFAULT_HTTP_PORT), 16);
-        this.httpServer.createContext("/drawing", this::handleDrawingRequest);
         this.httpExecutor = Executors.newSingleThreadExecutor();
+        this.httpServer = HttpServer.create(new InetSocketAddress(DEFAULT_HTTP_PORT), 16);
         this.httpServer.setExecutor(this.httpExecutor);
+        this.httpServer.createContext("/drawing", this::handleDrawingRequest);
+        this.httpServer.createContext("/drawing/new", this::handleNewDrawingRequest);
+        this.httpServer.createContext("/drawing/prev", this::handlePrevDrawingRequest);
+        this.httpServer.createContext("/drawing/next", this::handleNextDrawingRequest);
         this.httpServer.start();
     }
 
@@ -54,20 +58,58 @@ public class MessageExchangeHost implements AutoCloseable {
     public void close() throws Exception {
         this.inboundMessagePublisher.close();
         this.inbound.close();
-        this.httpExecutor.shutdownNow();
+        this.httpExecutor.shutdown();
         //noinspection ResultOfMethodCallIgnored
         this.httpExecutor.awaitTermination(10, TimeUnit.SECONDS);
         this.httpServer.stop(0);
     }
 
     private void handleDrawingRequest(HttpExchange exchange) {
-        final Drawing drawing = this.drawingSupplier.get();
-        exchange.getResponseHeaders().add("Content-Type", "application/json");
+        log.info("http request {} {}", exchange.getRequestMethod(), exchange.getRequestURI());
+        if (Objects.equals(exchange.getRequestMethod(), "GET") == false) {
+            return;
+        }
+        final Drawing drawing = this.documentSupplier.get().drawing();
+        writeDrawing(drawing, exchange);
+    }
+
+    private void handlePrevDrawingRequest(HttpExchange exchange) {
+        log.info("http request {} {}", exchange.getRequestMethod(), exchange.getRequestURI());
+        if (Objects.equals(exchange.getRequestMethod(), "POST") == false) {
+            return;
+        }
+        final Drawing drawing = this.documentSupplier.get().selectPreviousDrawing();
+        writeDrawing(drawing, exchange);
+        this.inboundMessagePublisher.submit(new RedrawMessage());
+    }
+
+    private void handleNextDrawingRequest(HttpExchange exchange) {
+        log.info("http request {} {}", exchange.getRequestMethod(), exchange.getRequestURI());
+        if (Objects.equals(exchange.getRequestMethod(), "POST") == false) {
+            return;
+        }
+        final Drawing drawing = this.documentSupplier.get().selectNextDrawing();
+        writeDrawing(drawing, exchange);
+        this.inboundMessagePublisher.submit(new RedrawMessage());
+    }
+
+    private void handleNewDrawingRequest(HttpExchange exchange) {
+        log.info("http request {} {}", exchange.getRequestMethod(), exchange.getRequestURI());
+        if (Objects.equals(exchange.getRequestMethod(), "POST") == false) {
+            return;
+        }
+        final Drawing drawing = this.documentSupplier.get().insertNewDrawing();
+        writeDrawing(drawing, exchange);
+        this.inboundMessagePublisher.submit(new RedrawMessage());
+    }
+
+    private void writeDrawing(Drawing drawing, HttpExchange exchange) {
         try {
+            exchange.getResponseHeaders().add("Content-Type", "application/json");
+            final OutputStream os = exchange.getResponseBody();
             final Module module = new SimpleModule().addSerializer(new CoordinateSerializer());
             final ObjectMapper mapper = new ObjectMapper().registerModule(module);
             final byte[] bytes = mapper.writeValueAsBytes(drawing);
-            final OutputStream os = exchange.getResponseBody();
             exchange.sendResponseHeaders(200, bytes.length);
             os.write(bytes);
             os.flush();
@@ -103,6 +145,9 @@ public class MessageExchangeHost implements AutoCloseable {
                     (float) args.get(6));
             case "/figure/point" -> new FigurePointMessage(new Coordinate((float) args.get(0), (float) args.get(1)));
             case "/figure/end" -> new FigureEndMessage(new Coordinate((float) args.get(0), (float) args.get(1)));
+            case "/figure/remove" -> new FigureRemoveMessage(
+                    new Coordinate((float) args.get(0), (float) args.get(1)),
+                    (int) args.get(2));
             default -> {
                 log.warn("unrecognized OSC message address: {}", oscMsg.getAddress());
                 yield null;
@@ -116,7 +161,7 @@ public class MessageExchangeHost implements AutoCloseable {
     private class PacketListener implements OSCPacketListener {
         @Override
         public void handlePacket(OSCPacketEvent oscPacketEvent) {
-            MessageExchangeHost.this.handleInboundPacket(oscPacketEvent.getPacket());
+            handleInboundPacket(oscPacketEvent.getPacket());
         }
 
         @Override

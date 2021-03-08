@@ -250,7 +250,7 @@ public class ClientController {
             }
             drawing.figures().removeAll(figuresToRemove);
             this.figureGeometries.removeAll(geometriesToRemove);
-            if (figuresToRemove.isEmpty() == false) {
+            if (figureIndicesToRemove.isEmpty() == false) {
                 render();
             }
         }

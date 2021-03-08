@@ -1,9 +1,13 @@
 package net.smackem.lightboard.app;
 
 import javafx.application.Platform;
+import javafx.beans.binding.Bindings;
+import javafx.beans.property.DoubleProperty;
+import javafx.beans.property.SimpleDoubleProperty;
 import javafx.fxml.FXML;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
+import javafx.scene.control.CheckBox;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.StackPane;
 import javafx.scene.paint.Color;
@@ -29,11 +33,15 @@ public class MainController {
     private static final Logger log = LoggerFactory.getLogger(MainController.class);
     private final Document document = new Document();
     private final MessageExchangeHost mex;
+    private final DoubleProperty canvasWidth = new SimpleDoubleProperty();
+    private final DoubleProperty canvasHeight = new SimpleDoubleProperty();
 
     @FXML
     private Canvas canvas;
     @FXML
     private Pane canvasContainer;
+    @FXML
+    private CheckBox fitToWindowCheck;
 
     public MainController() throws IOException {
         this.mex = new MessageExchangeHost(() -> this.document);
@@ -44,6 +52,14 @@ public class MainController {
     private void initialize() {
         Platform.runLater(() ->
             this.canvas.getScene().getWindow().addEventHandler(WindowEvent.WINDOW_CLOSE_REQUEST, this::onWindowClosed));
+        this.canvas.widthProperty().bind(Bindings.when(fitToWindowCheck.selectedProperty())
+                .then(this.canvasContainer.widthProperty())
+                .otherwise(this.canvasWidth));
+        this.canvas.heightProperty().bind(Bindings.when(fitToWindowCheck.selectedProperty())
+                .then(this.canvasContainer.heightProperty())
+                .otherwise(this.canvasHeight));
+        this.canvas.widthProperty().addListener(ignored -> render());
+        this.canvas.heightProperty().addListener(ignored -> render());
     }
 
     private void render() {
@@ -80,8 +96,8 @@ public class MainController {
             if (this.document.drawing().isBlank() == false) {
                 this.document.insertNewDrawing();
             }
-            this.canvas.setWidth(initSize.width());
-            this.canvas.setHeight(initSize.height());
+            this.canvasWidth.set(initSize.width());
+            this.canvasHeight.set(initSize.height());
             render();
             return;
         }

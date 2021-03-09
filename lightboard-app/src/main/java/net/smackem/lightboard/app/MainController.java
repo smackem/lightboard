@@ -13,6 +13,7 @@ import javafx.scene.layout.StackPane;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.StrokeLineCap;
 import javafx.scene.shape.StrokeLineJoin;
+import javafx.scene.transform.Affine;
 import javafx.stage.WindowEvent;
 import net.smackem.lightboard.io.MessageExchangeHost;
 import net.smackem.lightboard.messaging.*;
@@ -25,6 +26,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.print.Doc;
+import java.awt.geom.AffineTransform;
 import java.io.IOException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Flow;
@@ -64,6 +66,10 @@ public class MainController {
 
     private void render() {
         final GraphicsContext gc = this.canvas.getGraphicsContext2D();
+        if (this.fitToWindowCheck.isSelected()) {
+            gc.scale(this.canvas.getWidth() / this.canvasWidth.get(),
+                    this.canvas.getHeight() / this.canvasHeight.get());
+        }
         gc.setLineCap(StrokeLineCap.ROUND);
         gc.setLineJoin(StrokeLineJoin.ROUND);
         gc.setFill(Color.WHITE);

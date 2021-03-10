@@ -1,6 +1,7 @@
 package net.smackem.lightboard.app;
 
 import javafx.application.Platform;
+import javafx.beans.Observable;
 import javafx.beans.binding.Bindings;
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.SimpleDoubleProperty;
@@ -8,42 +9,40 @@ import javafx.fxml.FXML;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.control.CheckBox;
+import javafx.scene.control.ToolBar;
+import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.Pane;
-import javafx.scene.layout.StackPane;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.StrokeLineCap;
 import javafx.scene.shape.StrokeLineJoin;
-import javafx.scene.transform.Affine;
 import javafx.stage.WindowEvent;
 import net.smackem.lightboard.io.MessageExchangeHost;
 import net.smackem.lightboard.messaging.*;
 import net.smackem.lightboard.model.Document;
-import net.smackem.lightboard.model.Drawing;
 import net.smackem.lightboard.model.Figure;
 import net.smackem.lightboard.model.Rgba;
 import org.locationtech.jts.geom.Coordinate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.print.Doc;
-import java.awt.geom.AffineTransform;
 import java.io.IOException;
-import java.util.concurrent.Executor;
 import java.util.concurrent.Flow;
 
 public class MainController {
     private static final Logger log = LoggerFactory.getLogger(MainController.class);
     private final Document document = new Document();
     private final MessageExchangeHost mex;
-    private final DoubleProperty canvasWidth = new SimpleDoubleProperty();
-    private final DoubleProperty canvasHeight = new SimpleDoubleProperty();
+    private final DoubleProperty worldWidth = new SimpleDoubleProperty();
+    private final DoubleProperty worldHeight = new SimpleDoubleProperty();
 
     @FXML
     private Canvas canvas;
     @FXML
-    private Pane canvasContainer;
-    @FXML
     private CheckBox fitToWindowCheck;
+    @FXML
+    private ToolBar topBar;
+    @FXML
+    private Pane root;
 
     public MainController() throws IOException {
         this.mex = new MessageExchangeHost(() -> this.document);
@@ -55,25 +54,37 @@ public class MainController {
         Platform.runLater(() ->
             this.canvas.getScene().getWindow().addEventHandler(WindowEvent.WINDOW_CLOSE_REQUEST, this::onWindowClosed));
         this.canvas.widthProperty().bind(Bindings.when(fitToWindowCheck.selectedProperty())
-                .then(this.canvasContainer.widthProperty())
-                .otherwise(this.canvasWidth));
+                .then(this.root.widthProperty())
+                .otherwise(this.worldWidth));
         this.canvas.heightProperty().bind(Bindings.when(fitToWindowCheck.selectedProperty())
-                .then(this.canvasContainer.heightProperty())
-                .otherwise(this.canvasHeight));
-        this.canvas.widthProperty().addListener(ignored -> render());
-        this.canvas.heightProperty().addListener(ignored -> render());
+                .then(this.root.heightProperty().subtract(topBar.getHeight()))
+                .otherwise(this.worldHeight));
+        this.canvas.widthProperty().addListener(this::onCanvasResize);
+        this.canvas.heightProperty().addListener(this::onCanvasResize);
+        render();
+    }
+
+    private void onCanvasResize(Observable observable) {
+        log.info("world size: {}x{}, canvas size: {}x{}",
+                this.worldWidth.get(), this.worldHeight.get(),
+                this.canvas.getWidth(), this.canvas.getHeight());
+        render();
     }
 
     private void render() {
         final GraphicsContext gc = this.canvas.getGraphicsContext2D();
+        final double worldWidth = this.worldWidth.get();
+        final double worldHeight =this.worldHeight.get();
+        gc.save();
         if (this.fitToWindowCheck.isSelected()) {
-            gc.scale(this.canvas.getWidth() / this.canvasWidth.get(),
-                    this.canvas.getHeight() / this.canvasHeight.get());
+            final double scaleX = this.canvas.getWidth() / worldWidth;
+            final double scaleY = this.canvas.getHeight() / worldHeight;
+            gc.scale(scaleX, scaleY);
         }
         gc.setLineCap(StrokeLineCap.ROUND);
         gc.setLineJoin(StrokeLineJoin.ROUND);
         gc.setFill(Color.WHITE);
-        gc.fillRect(0, 0, this.canvas.getWidth(), this.canvas.getHeight());
+        gc.fillRect(0, 0, worldWidth, worldHeight);
         for (final Figure figure : this.document.drawing().figures()) {
             Coordinate prevPt = null;
             final Rgba rgba = figure.color();
@@ -86,6 +97,7 @@ public class MainController {
                 prevPt = point;
             }
         }
+        gc.restore();
     }
 
     private void onWindowClosed(WindowEvent windowEvent) {
@@ -102,8 +114,8 @@ public class MainController {
             if (this.document.drawing().isBlank() == false) {
                 this.document.insertNewDrawing();
             }
-            this.canvasWidth.set(initSize.width());
-            this.canvasHeight.set(initSize.height());
+            this.worldWidth.set(initSize.width());
+            this.worldHeight.set(initSize.height());
             render();
             return;
         }

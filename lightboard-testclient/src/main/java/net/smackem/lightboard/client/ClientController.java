@@ -67,7 +67,13 @@ public class ClientController {
         this.canvas.heightProperty().bind(this.canvasContainer.heightProperty());
         this.canvas.widthProperty().addListener(this::onCanvasResize);
         this.canvas.heightProperty().addListener(this::onCanvasResize);
+        this.canvasContainer.widthProperty().addListener(this::onCanvasContainerResize);
+        this.canvasContainer.heightProperty().addListener(this::onCanvasContainerResize);
         render();
+    }
+
+    private void onCanvasContainerResize(Observable observable) {
+        log.info("canvas container size: {}x{}", this.canvasContainer.getWidth(), this.canvasContainer.getHeight());
     }
 
     private void onCanvasResize(Observable observable) {

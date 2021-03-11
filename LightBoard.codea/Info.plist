@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>Author</key>
+	<string>Simeon</string>
+	<key>Buffer Order</key>
+	<array>
+		<string>Main</string>
+	</array>
+	<key>Description</key>
+	<string>Shows you how to use the CurrentTouch global to get and respond to information about a single touch on the screen</string>
+	<key>Introduced</key>
+	<integer>241</integer>
+	<key>LocalizedDescription</key>
+	<string>EXAMPLE_HANDLINGTOUCHES_DESCRIPTION</string>
+	<key>Order</key>
+	<integer>1</integer>
+</dict>
+</plist>

@@ -33,6 +33,7 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
@@ -236,26 +237,22 @@ public class ClientController {
         @Override
         public void onMouseDrag(double x, double y) {
             final Geometry cursor = this.geometryFactory.createPoint(new Coordinate(x, y));
-            final List<Integer> figureIndicesToRemove = new ArrayList<>();
+            final LinkedList<Integer> figureIndicesToRemove = new LinkedList<>();
             for (int i = 0; i < this.figureGeometries.size(); i++) {
                 final Geometry geometry = this.figureGeometries.get(i);
                 if (geometry.distance(cursor) < 5.0) {
-                    figureIndicesToRemove.add(i);
+                    figureIndicesToRemove.addFirst(i);
                 }
             }
-            final List<Geometry> geometriesToRemove = new ArrayList<>();
-            final List<FigureBean> figuresToRemove = new ArrayList<>();
             for (final int figureIndex : figureIndicesToRemove) {
-                geometriesToRemove.add(this.figureGeometries.get(figureIndex));
-                figuresToRemove.add(drawing.figures().get(figureIndex));
+                drawing.figures().remove(figureIndex);
+                this.figureGeometries.remove(figureIndex);
                 try {
                     outboundPort.send(new OSCMessage("/figure/remove", List.of((float) x, (float) y, figureIndex)));
                 } catch (OSCSerializeException | IOException e) {
                     e.printStackTrace();
                 }
             }
-            drawing.figures().removeAll(figuresToRemove);
-            this.figureGeometries.removeAll(geometriesToRemove);
             if (figureIndicesToRemove.isEmpty() == false) {
                 render();
             }

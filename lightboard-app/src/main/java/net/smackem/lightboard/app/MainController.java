@@ -5,9 +5,12 @@ import javafx.beans.Observable;
 import javafx.beans.binding.Bindings;
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.SimpleDoubleProperty;
+import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
+import javafx.scene.control.Alert;
+import javafx.scene.control.ButtonType;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.ToolBar;
 import javafx.scene.layout.BorderPane;
@@ -15,8 +18,10 @@ import javafx.scene.layout.Pane;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.StrokeLineCap;
 import javafx.scene.shape.StrokeLineJoin;
+import javafx.stage.FileChooser;
 import javafx.stage.WindowEvent;
 import net.smackem.lightboard.io.MessageExchangeHost;
+import net.smackem.lightboard.io.SvgWriter;
 import net.smackem.lightboard.messaging.*;
 import net.smackem.lightboard.model.Document;
 import net.smackem.lightboard.model.Figure;
@@ -25,7 +30,9 @@ import org.locationtech.jts.geom.Coordinate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
+import java.io.*;
+import java.nio.file.Files;
+import java.nio.file.StandardOpenOption;
 import java.util.concurrent.Flow;
 
 public class MainController {
@@ -100,6 +107,24 @@ public class MainController {
         gc.restore();
     }
 
+    @FXML
+    private void onExportSvg(ActionEvent ignored) {
+        final FileChooser dialog = new FileChooser();
+        dialog.setInitialFileName("LightBoard.svg");
+        final File file = dialog.showSaveDialog(root.getScene().getWindow());
+        if (file == null) {
+            return;
+        }
+        final SvgWriter writer = new SvgWriter();
+        try (final FileWriter fileWriter = new FileWriter(file)) {
+            writer.write(this.document, fileWriter);
+        } catch (IOException e) {
+            new Alert(Alert.AlertType.ERROR,
+                    "Error saving file: " + e.getMessage(),
+                    ButtonType.OK).showAndWait();
+        }
+    }
+
     private void onWindowClosed(WindowEvent windowEvent) {
         try {
             this.mex.close();
@@ -111,6 +136,7 @@ public class MainController {
 
     private void handleMessage(Message message) {
         if (message instanceof InitSizeMessage initSize) {
+            this.document.setSize(initSize.width(), initSize.height());
             if (this.document.drawing().isBlank() == false) {
                 this.document.insertNewDrawing();
             }

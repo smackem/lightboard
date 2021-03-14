@@ -1,16 +1,39 @@
 package net.smackem.lightboard.model;
 
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Objects;
+import java.util.*;
 
 public class Document {
     private final Object monitor = new Object();
     private final List<Drawing> drawings = new LinkedList<>();
+    private int width;
+    private int height;
     private int drawingIndex;
 
     {
         this.drawings.add(new Drawing());
+    }
+
+    public int width() {
+        synchronized (this.monitor) {
+            return this.width;
+        }
+    }
+
+    public int height() {
+        synchronized (this.monitor) {
+            return this.height;
+        }
+    }
+
+    public Collection<Drawing> drawings() {
+        return Collections.unmodifiableCollection(this.drawings);
+    }
+
+    public void setSize(int width, int height) {
+        synchronized (this.monitor) {
+            this.width = width;
+            this.height = height;
+        }
     }
 
     public Drawing drawing() {

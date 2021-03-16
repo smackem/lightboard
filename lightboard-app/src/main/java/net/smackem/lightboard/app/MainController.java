@@ -9,11 +9,7 @@ import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
-import javafx.scene.control.Alert;
-import javafx.scene.control.ButtonType;
-import javafx.scene.control.CheckBox;
-import javafx.scene.control.ToolBar;
-import javafx.scene.layout.BorderPane;
+import javafx.scene.control.*;
 import javafx.scene.layout.Pane;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.StrokeLineCap;
@@ -31,8 +27,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.*;
-import java.nio.file.Files;
-import java.nio.file.StandardOpenOption;
 import java.util.concurrent.Flow;
 
 public class MainController {
@@ -41,6 +35,7 @@ public class MainController {
     private final MessageExchangeHost mex;
     private final DoubleProperty worldWidth = new SimpleDoubleProperty();
     private final DoubleProperty worldHeight = new SimpleDoubleProperty();
+    private final DoubleProperty simplificationTolerance = new SimpleDoubleProperty(0.5);
 
     @FXML
     private Canvas canvas;
@@ -50,6 +45,8 @@ public class MainController {
     private ToolBar topBar;
     @FXML
     private Pane root;
+    @FXML
+    private Slider simplificationSlider;
 
     public MainController() throws IOException {
         this.mex = new MessageExchangeHost(() -> this.document);
@@ -68,6 +65,12 @@ public class MainController {
                 .otherwise(this.worldHeight));
         this.canvas.widthProperty().addListener(this::onCanvasResize);
         this.canvas.heightProperty().addListener(this::onCanvasResize);
+        this.simplificationSlider.valueProperty().addListener((prop, old, v) -> {
+            if (this.simplificationSlider.isValueChanging() == false) {
+                log.info("simplification value: {}", v);
+                this.simplificationTolerance.set(v.doubleValue());
+            }
+        });
         render();
     }
 
@@ -155,7 +158,7 @@ public class MainController {
             return;
         }
         if (message instanceof FigureEndMessage figureEnd) {
-            this.document.drawing().endFigure(figureEnd.point());
+            this.document.drawing().endFigure(figureEnd.point(), this.simplificationTolerance.get());
             render();
             return;
         }

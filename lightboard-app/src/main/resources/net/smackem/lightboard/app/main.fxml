@@ -12,6 +12,7 @@
 <?import javafx.scene.control.CheckBox?>
 <?import javafx.scene.layout.AnchorPane?>
 <?import javafx.scene.control.Separator?>
+<?import javafx.scene.control.Slider?>
 <BorderPane xmlns="http://javafx.com/javafx/8.0.171"
             xmlns:fx="http://javafx.com/fxml/1"
             fx:controller="net.smackem.lightboard.app.MainController"
@@ -21,6 +22,11 @@
    <top>
       <ToolBar fx:id="topBar">
          <CheckBox fx:id="fitToWindowCheck" text="Fit to Window" />
+         <Separator />
+         <Label text="Coercion:" />
+         <Slider fx:id="simplificationSlider" min="0.5" max="20.5"
+                 minorTickCount="2" majorTickUnit="20" blockIncrement="5"
+                 snapToTicks="true" />
          <Separator />
          <Button text="Export SVG..." onAction="#onExportSvg" />
       </ToolBar>

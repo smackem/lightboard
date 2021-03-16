@@ -55,14 +55,14 @@ public class Drawing {
         }
     }
 
-    public void endFigure(Coordinate point) {
+    public void endFigure(Coordinate point, double simplificationTolerance) {
         synchronized (this.monitor) {
             final Figure figure = currentFigure();
             if (figure == null) {
                 return;
             }
             figure.addPoint(point);
-            figure.simplify();
+            figure.simplify(simplificationTolerance);
         }
     }
 

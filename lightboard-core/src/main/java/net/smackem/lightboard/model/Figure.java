@@ -53,10 +53,10 @@ public class Figure {
         }
     }
 
-    void simplify() {
+    void simplify(double tolerance) {
         final int oldSize, newSize;
         synchronized (this.monitor) {
-            final Geometry simplified = TopologyPreservingSimplifier.simplify(buildGeometry(), 1.5);
+            final Geometry simplified = TopologyPreservingSimplifier.simplify(buildGeometry(), tolerance);
             oldSize = this.points.size();
             this.points.clear();
             this.points.addAll(List.of(simplified.getCoordinates()));

@@ -7,11 +7,11 @@
         <version>1.0-SNAPSHOT</version>
     </parent>
     <artifactId>lightboard-app</artifactId>
+
     <properties>
-        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <javafx.version>14</javafx.version>
         <project.runtime.mainClass>net.smackem.lightboard.app.App</project.runtime.mainClass>
     </properties>
+
     <dependencies>
         <dependency>
             <groupId>net.smackem.lightboard</groupId>
